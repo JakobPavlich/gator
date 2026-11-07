@@ -1,13 +1,17 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
 	"github.com/JakobPavlich/gator/internal/config"
+	"github.com/JakobPavlich/gator/internal/database"
+	_ "github.com/lib/pq"
 )
 
 type state struct {
+	db  *database.Queries
 	cfg *config.Config
 }
 
@@ -18,14 +22,24 @@ func NewCommands() commands {
 }
 
 func main() {
+	// Nastavljanje uporabnika
 	cfg, err := config.Read()
 	if err != nil {
 		fmt.Printf("Unable to read config file: %v", err)
 	}
 	var appState state
 	appState.cfg = &cfg
+	// SQL
+	db, err := sql.Open("postgres", cfg.DBURL)
+	if err != nil {
+		fmt.Printf("Could not connect to the database: %v", err)
+		os.Exit(1)
+	}
+	appState.db = database.New(db)
+
 	appCommands := NewCommands()
 	appCommands.register("login", handlerLogin)
+	appCommands.register("register", handlerRegister)
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("Not enough arguments provided")
@@ -38,5 +52,4 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error running login command: %v", err)
 	}
-	// fmt.Printf("Current user: %s\nCurrent DBURL: %s", appState.cfg.CurrentUserName, appState.cfg.DBURL)
 }

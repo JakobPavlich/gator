@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
+	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/JakobPavlich/gator/internal/config"
+	"github.com/JakobPavlich/gator/internal/database"
 )
 
 func handlerLogin(s *state, cmd command) error {
@@ -13,14 +18,49 @@ func handlerLogin(s *state, cmd command) error {
 		fmt.Println("username required")
 		os.Exit(1)
 	}
+	userName := cmd.arguments[0]
+	_, err := s.db.GetUser(context.Background(), userName)
+	if err != nil {
+		fmt.Printf("User '%s' is not yet registered. Use the 'register (username)' command first.", userName)
+		os.Exit(1)
+	}
 	cfg, err := config.Read()
 	if err != nil {
 		return errors.New("error retrieving config file")
 	}
-	cfg.SetUser(cmd.arguments[0])
+	cfg.SetUser(userName)
 	s.cfg.CurrentUserName = cfg.CurrentUserName
 	s.cfg.DBURL = cfg.DBURL
 	fmt.Printf("User '%s' has been set \n", cfg.CurrentUserName)
+
+	return nil
+}
+
+func handlerRegister(s *state, cmd command) error {
+	if len(cmd.arguments) == 0 {
+		fmt.Println("username required")
+		os.Exit(1)
+	}
+	userName := cmd.arguments[0]
+
+	userParams := database.CreateUserParams{}
+	userParams.ID = uuid.New()
+	userParams.CreatedAt = time.Now()
+	userParams.UpdatedAt = time.Now()
+	user, err := s.db.GetUser(context.Background(), userName)
+	if err == nil {
+		fmt.Printf("User '%s' already exists", user.Name)
+		os.Exit(1)
+	}
+	userParams.Name = userName
+	user, err = s.db.CreateUser(context.Background(), userParams)
+	if err != nil {
+		return fmt.Errorf("couldn't create a user: %v", err)
+	}
+	s.cfg.SetUser(user.Name)
+	fmt.Println("User was successfully created.")
+	fmt.Printf("Name: %s\n", user.Name)
+	fmt.Printf("Data: %+v", user)
 
 	return nil
 }
