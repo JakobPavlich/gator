@@ -14,3 +14,6 @@ WHERE name = $1 LIMIT 1;
 
 -- name: DropTable :exec
 DELETE FROM users;
+
+-- name: GetUsers :many
+SELECT * FROM users;
