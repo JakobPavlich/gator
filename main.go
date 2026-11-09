@@ -40,6 +40,7 @@ func main() {
 	appCommands := NewCommands()
 	appCommands.register("login", handlerLogin)
 	appCommands.register("register", handlerRegister)
+	appCommands.register("reset", handlerReset)
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("Not enough arguments provided")
@@ -47,9 +48,10 @@ func main() {
 	}
 	commandName := args[1]
 	commandArguments := args[2:]
-	loginCommand := command{commandName, commandArguments}
-	err = appCommands.run(&appState, loginCommand)
+	command := command{commandName, commandArguments}
+	err = appCommands.run(&appState, command)
 	if err != nil {
-		fmt.Printf("Error running login command: %v", err)
+		fmt.Printf("Error running command: %v", err)
+		os.Exit(1)
 	}
 }
