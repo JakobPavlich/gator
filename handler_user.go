@@ -97,3 +97,60 @@ func handlerAgg(s *state, cmd command) error {
 	}
 	return nil
 }
+
+func handlerAddFeed(s *state, cmd command) error {
+	userName := s.cfg.CurrentUserName
+	user, err := s.db.GetUser(context.Background(), userName)
+	if err != nil {
+		return fmt.Errorf("Could not find user '%s'", userName)
+	}
+	userId := user.ID
+	if len(cmd.arguments) < 2 {
+		return errors.New("command 'addfeed' needs two arguments (name,url)")
+	}
+	name := cmd.arguments[0]
+	url := cmd.arguments[1]
+
+	var params database.CreateFeedParams
+	params.ID = uuid.New()
+	params.Name = name
+	params.CreatedAt = time.Now()
+	params.UpdatedAt = time.Now()
+	params.Url = url
+	params.UserID = userId
+
+	feed, err := s.db.CreateFeed(context.Background(), params)
+	if err != nil {
+		return fmt.Errorf("error entering the feed into the database: %v", err)
+	}
+	fmt.Println("New feed successfully added to the database")
+	fmt.Printf("%+v", feed)
+	return nil
+}
+
+func handlerFeeds(s *state, cmd command) error {
+	if len(cmd.arguments) > 0 {
+		fmt.Println("'feeds' takes no arguments, it only lists the content:")
+	}
+
+	feeds, err := s.db.GetFeeds(context.Background())
+	if err != nil {
+		return fmt.Errorf("error retrieving feeds: %v", err)
+	}
+	fmt.Println("Printing feeds:")
+	for id, feed := range feeds {
+		name := feed.Name
+		url := feed.Url
+		userName, err := s.db.FindUserByID(context.Background(), feed.UserID)
+		if err != nil {
+			return fmt.Errorf("Error retrieving user by ID: %v", err)
+		}
+		fmt.Printf("* Feed %d\n", id+1)
+		fmt.Printf("  - Name: %s\n", name)
+		fmt.Printf("  - Url: %s\n", url)
+		fmt.Printf("  - User Name: %s\n", userName)
+
+	}
+
+	return nil
+}

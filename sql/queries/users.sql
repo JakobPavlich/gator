@@ -17,3 +17,7 @@ DELETE FROM users;
 
 -- name: GetUsers :many
 SELECT * FROM users;
+
+-- name: FindUserByID :one
+SELECT users.name FROM users INNER JOIN feeds ON users.id = feeds.user_id
+WHERE users.id = $1 LIMIT 1;
