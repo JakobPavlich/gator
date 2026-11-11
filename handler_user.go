@@ -102,7 +102,7 @@ func handlerAddFeed(s *state, cmd command) error {
 	userName := s.cfg.CurrentUserName
 	user, err := s.db.GetUser(context.Background(), userName)
 	if err != nil {
-		return fmt.Errorf("Could not find user '%s'", userName)
+		return fmt.Errorf("could not find user '%s'", userName)
 	}
 	userId := user.ID
 	if len(cmd.arguments) < 2 {
@@ -143,7 +143,7 @@ func handlerFeeds(s *state, cmd command) error {
 		url := feed.Url
 		userName, err := s.db.FindUserByID(context.Background(), feed.UserID)
 		if err != nil {
-			return fmt.Errorf("Error retrieving user by ID: %v", err)
+			return fmt.Errorf("error retrieving user by ID: %v", err)
 		}
 		fmt.Printf("* Feed %d\n", id+1)
 		fmt.Printf("  - Name: %s\n", name)
@@ -152,5 +152,36 @@ func handlerFeeds(s *state, cmd command) error {
 
 	}
 
+	return nil
+}
+
+func handlerFollow(s *state, cmd command) error {
+	if len(cmd.arguments) < 1 {
+		return errors.New("missing url")
+	}
+
+	url := cmd.arguments[0]
+	feed, err := s.db.FindFeedByURL(context.Background(), url)
+	if err != nil {
+		return errors.New("could not find a feed with the given URL")
+	}
+	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+	if err != nil {
+		return errors.New("error retrieving user ID")
+	}
+
+	params := database.CreateFeedFollowParams{}
+	params.ID = uuid.New()
+	params.CreatedAt = time.Now()
+	params.UpdatedAt = time.Now()
+	params.FeedID = feed.ID
+	params.UserID = user.ID
+
+	feedFollow, err := s.db.CreateFeedFollow(context.Background(), params)
+	if err != nil {
+		return errors.New("error creating feed follow")
+	}
+	fmt.Printf("Feed: %s\n", feedFollow.FeedName)
+	fmt.Printf("User: %s\n", feedFollow.UserName)
 	return nil
 }

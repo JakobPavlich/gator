@@ -45,6 +45,7 @@ func main() {
 	appCommands.register("agg", handlerAgg)
 	appCommands.register("addfeed", handlerAddFeed)
 	appCommands.register("feeds", handlerFeeds)
+	appCommands.register("follow", handlerFollow)
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("Not enough arguments provided")
