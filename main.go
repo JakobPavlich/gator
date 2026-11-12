@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -18,6 +19,20 @@ type state struct {
 func NewCommands() commands {
 	return commands{
 		handler: make(map[string]func(*state, command) error),
+	}
+}
+
+func middlewareLoggedIn(handler func(s *state, cmd command, user database.User) error) func(*state, command) error {
+	return func(s *state, c command) error {
+		user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+		if err != nil {
+			return fmt.Errorf("could not find user '%s'", user.Name)
+		}
+		err = handler(s, c, user)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 }
 
@@ -43,9 +58,10 @@ func main() {
 	appCommands.register("reset", handlerReset)
 	appCommands.register("users", handlerUsers)
 	appCommands.register("agg", handlerAgg)
-	appCommands.register("addfeed", handlerAddFeed)
+	appCommands.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 	appCommands.register("feeds", handlerFeeds)
-	appCommands.register("follow", handlerFollow)
+	appCommands.register("follow", middlewareLoggedIn(handlerFollow))
+	appCommands.register("following", middlewareLoggedIn(handlerFollowing))
 	args := os.Args
 	if len(args) < 2 {
 		fmt.Println("Not enough arguments provided")
