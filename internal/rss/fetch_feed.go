@@ -4,8 +4,6 @@ package rss
 import (
 	"context"
 	"encoding/xml"
-	"fmt"
-	"html"
 	"io"
 	"net/http"
 )
@@ -47,18 +45,18 @@ func FetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	if err != nil {
 		return nil, err
 	}
-	title := html.UnescapeString(feed.Channel.Title)
-	description := html.UnescapeString(feed.Channel.Description)
-	fmt.Println(title)
-	fmt.Println(feed.Channel.Link)
-	fmt.Println(description)
-	for _, item := range feed.Channel.Item {
-		title := html.UnescapeString(item.Title)
-		description := html.UnescapeString(item.Description)
-		fmt.Println(title)
-		fmt.Println(item.Link)
-		fmt.Println(description)
-		fmt.Println(item.PubDate)
-	}
+	// title := html.UnescapeString(feed.Channel.Title)
+	// description := html.UnescapeString(feed.Channel.Description)
+	// fmt.Println(title)
+	// fmt.Println(feed.Channel.Link)
+	// fmt.Println(description)
+	// for _, item := range feed.Channel.Item {
+	// 	title := html.UnescapeString(item.Title)
+	// 	description := html.UnescapeString(item.Description)
+	// 	fmt.Println(title)
+	// 	fmt.Println(item.Link)
+	// 	fmt.Println(description)
+	// 	fmt.Println(item.PubDate)
+	// }
 	return &feed, nil
 }
