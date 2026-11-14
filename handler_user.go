@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"html"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 
 	"github.com/JakobPavlich/gator/internal/config"
 	"github.com/JakobPavlich/gator/internal/database"
@@ -195,7 +198,13 @@ func handlerFollow(s *state, cmd command, user database.User) error {
 
 	feedFollow, err := s.db.CreateFeedFollow(context.Background(), params)
 	if err != nil {
-		return fmt.Errorf("error creating feed follow: %v", err)
+		if pqErr, ok := err.(*pq.Error); ok {
+			if pqErr.Code == "23505" {
+				// unique_violation - just skip this post
+				return nil
+			}
+			return fmt.Errorf("error creating feed follow: %v", err)
+		}
 	}
 	fmt.Printf("Feed: %s\n", feedFollow.FeedName)
 	fmt.Printf("User: %s\n", feedFollow.UserName)
@@ -254,11 +263,73 @@ func scrapeFeeds(s *state) error {
 	if err != nil {
 		return err
 	}
-	title := strings.ToUpper(fetchedFeed.Channel.Title)
-	fmt.Printf("Printing feed titles for '%s':\n", title)
 	for _, item := range fetchedFeed.Channel.Item {
 		title := html.UnescapeString(item.Title)
-		fmt.Printf(" * %s\n", title)
+		description := html.UnescapeString(item.Description)
+		pubDate, err := time.Parse(time.RFC1123, item.PubDate)
+		if err != nil {
+			return err
+		}
+		sqlPubDate := sql.NullTime{Time: pubDate, Valid: true}
+		sqlDescription := sql.NullString{String: description, Valid: true}
+
+		var params database.CreatePostParams
+		params.ID = uuid.New()
+		params.CreatedAt = time.Now()
+		params.UpdatedAt = time.Now()
+		params.Title = title
+		params.PublishedAt = sqlPubDate
+		params.Description = sqlDescription
+		params.Url = item.Link
+		params.FeedID = feed.ID
+
+		_, err = s.db.CreatePost(context.Background(), params)
+		if err != nil {
+			if pqErr, ok := err.(*pq.Error); ok {
+				if pqErr.Code == "23505" {
+					// unique_violation - just skip this post
+					return nil
+				}
+				return fmt.Errorf("error creating feed follow: %v", err)
+			}
+		}
+		// if err != nil {
+		// 	return err
+		// }
+		// fmt.Printf(" - saved post '%s'\n", post.Title)
+	}
+
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command, user database.User) error {
+	limit := 2
+	if len(cmd.arguments) > 0 {
+		argLimit, err := strconv.Atoi(cmd.arguments[0])
+		if err != nil {
+			return err
+		}
+		limit = argLimit
+	}
+	var params database.GetPostsForUserParams
+	feedFollows, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Printing posts for user '%s':\n", user.Name)
+	for _, f := range feedFollows {
+		params.FeedID = f.FeedID
+		params.Limit = int32(limit)
+		posts, err := s.db.GetPostsForUser(context.Background(), params)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Feed: %s\n", f.Name)
+		for _, post := range posts {
+			fmt.Printf(" * %s\n", strings.ToUpper(post.Title))
+			fmt.Println(post.Description.String)
+		}
+		fmt.Println()
 	}
 	return nil
 }
